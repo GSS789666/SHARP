@@ -1,0 +1,30 @@
+# Four scenarios used by the main experiments.
+# Each row inherits from default.yaml; only the listed keys are overridden.
+
+scenarios:
+  S40_low:
+    env: { grid_size: 40, num_tasks: 60, max_steps: 1200, pedestrian_density: low }
+  S40_high:
+    env: { grid_size: 40, num_tasks: 60, max_steps: 1200, pedestrian_density: high }
+  S60_low:
+    env: { grid_size: 60, num_tasks: 100, max_steps: 1600, pedestrian_density: low }
+  S60_high:
+    env: { grid_size: 60, num_tasks: 100, max_steps: 1600, pedestrian_density: high }
+
+# Algorithms exercised in the main experiments.
+algorithms:
+  sharp:                                      # main proposal
+    safety_mode: cvar
+    description: "SHARP — full method with CVaR mask + soft bias + dual"
+  lagrangian_ppo:                             # B2
+    safety_mode: "off"                         # quoted! YAML 1.1 treats bare `off` as False
+    no_soft_bias: true                         # also disable the learned bias
+    description: "Standard primal-dual PPO without CVaR mask or soft bias (B2)"
+
+# Non-learned baselines run via scripts/eval_baseline.py
+baselines:
+  - caht
+  - milp
+
+# Three seeds per algorithm-scenario cell.
+seeds: [0, 1, 2]

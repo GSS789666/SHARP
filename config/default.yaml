@@ -1,0 +1,93 @@
+# SHARP default configuration
+# Used by simulator, model, and trainer unless overridden by scenario configs.
+
+env:
+  grid_size: 40            # 40x40 cells (each cell = 0.5 m)
+  cell_meters: 0.5
+  num_loaders: 3           # РП
+  num_transporters: 6      # РТ
+  num_unloaders: 3         # РР
+  num_tasks: 50            # training default; main experiments override to 100
+  max_steps: 1200          # 1200 * 0.25 s = 300 s sim horizon
+  pedestrian_density: low  # {low: 5, high: 15}
+
+robot:
+  loader:
+    speed: 1.0             # m/s
+    capacity: 1            # tasks held
+    energy_max: 100.0
+    energy_per_meter: 0.05
+  transporter:
+    speed: 1.5
+    capacity: 1            # one large item or one batch
+    energy_max: 120.0
+    energy_per_meter: 0.08
+  unloader:
+    speed: 1.0
+    capacity: 1
+    energy_max: 100.0
+    energy_per_meter: 0.05
+
+pedestrian:
+  classes: [adult, elderly, child]
+  class_probs: [0.7, 0.2, 0.1]
+  desired_speed:
+    adult: 1.3
+    elderly: 0.8
+    child: 1.0
+  relaxation_time: 0.5
+  social_A: 2.1            # social force amplitude
+  social_B: 0.3            # social force range
+  obstacle_A: 5.0
+  obstacle_B: 0.2
+  dt: 0.25                 # s per simulation step
+  goal_radius: 1.0         # ped resamples goal when within this distance
+
+risk:
+  collision_radius:        # robot footprint, m
+    loader: 0.4
+    transporter: 0.5
+    unloader: 0.4
+  ped_radius: 0.3          # pedestrian footprint
+  prediction_horizon: 16   # steps to look ahead (16 * 0.25s = 4s, covers
+                           # ~6 m of robot trajectory at default speeds)
+  # CVaR tail probability. The Bonferroni correction divides this by L*H
+  # (waypoints × pedestrians), so the effective per-pair tail is much
+  # tighter than the value here suggests; α=0.20 keeps the mask permissive
+  # enough that most assignments remain feasible at training time.
+  cvar_alpha: 0.20
+  epsilon_safety: 0.05     # max allowable collision rate per decision step
+
+reward:
+  task_completion: 10.0    # base reward per task done (multiplied by priority)
+  tw_late_slope: 0.5       # reward decay per second past tw_end (clamped at 0)
+  step_penalty: 0.2        # idle/step penalty per decision step
+  # Collision penalty kept zero in the *primal* reward; safety is enforced by
+  # the Lagrangian dual variable λ in eq. (4) of the method draft.
+  collision_penalty: 0.0
+
+training:
+  algo: ppo_primal_dual
+  total_epochs: 200
+  steps_per_epoch: 4096
+  batch_size: 16
+  lr_policy: 3.0e-4
+  # Slower dual rise (was 5e-2) — empirically 5e-2 made lambda grow so fast
+  # that the policy collapsed to "always wait" within ~20 iters before it
+  # ever learned to complete tasks.
+  lr_dual: 1.5e-2
+  # Hard cap on lambda so the safety penalty cannot completely dominate the
+  # task-completion reward. With lambda <= 3 and a per-step cost ~ 1, the
+  # safety drag is at most ~3 / step, while completing a priority-1 task
+  # pays +10 — keeping completion always net-positive in expectation.
+  lambda_max: 3.0
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_eps: 0.2
+  value_coef: 0.5
+  # Entropy coefficient — bumped well above PPO default 0.01 because heavy
+  # CVaR masking sharply reduces effective action space, otherwise the
+  # policy collapses to a deterministic argmax within ~20 iters and stops
+  # completing tasks altogether (observed in initial main experiments).
+  entropy_coef: 0.20
+  seed: 0

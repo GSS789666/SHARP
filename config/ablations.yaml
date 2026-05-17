@@ -1,0 +1,21 @@
+# Ablation switches for SHARP. Each ablation toggles ONE component so the
+# contribution of that component can be isolated.
+
+ablations:
+  # remove the CVaR mask: agent only has dual variable for safety
+  no_cvar:
+    safety_mode: "off"                         # quoted! YAML 1.1 treats bare `off` as False
+    description: "SHARP minus CVaR mask (= Lagrangian-PPO; redundant with B2)"
+  # CVaR mask present, but soft bias zeroed inside model.
+  no_soft_bias:
+    safety_mode: cvar
+    no_soft_bias: true
+    description: "SHARP without the soft risk bias"
+  # CVaR present + soft bias present, but train without primal-dual (fixed λ=0)
+  no_dual:
+    safety_mode: cvar
+    fix_lambda: 0.0
+    description: "SHARP without dual variable (constraint reduces to mask only)"
+
+# 3 ablations × 4 scenarios × 1 seed = 12 runs
+seeds: [0]
